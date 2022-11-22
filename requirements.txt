@@ -1,0 +1,10 @@
+Flask
+requests
+oauthlib
+Flask-Login
+PyOpenSSL
+google-auth
+google-auth-oauthlib
+requests-oauthlib
+pymongo
+numpy
