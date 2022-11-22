@@ -1,0 +1,50 @@
+This code was made using Python3 in a linux environment.
+
+I have no idea how much experience you have with Python3, so I'll err on the side of caution and be overly detailed!
+
+I'll assume you have a linux environment available.
+
+If you don't have python3 installed, you can install it with: sudo apt-get install python3
+
+
+***************************
+Setup a virtual environment (optional)
+***************************
+
+Not strictly necessary, but it'll ensure that everything is contained and won't affect your general linux environment.
+This is done via 'venv', which should be included automatically in your Python3 install
+
+To setup to the environment, run: python3 -m venv <path to directory>
+For example, if you're in the directory you want to be the root directory of the environment, run: python3 -m venv ./
+This will setup the environment but not run it.
+
+To run the environment, run: source bin/activate
+You'll know it's working if new lines in the terminal start with text in parenthesis before the usual command-line text
+The text is the name of the environment, which is usually the name of the root directory of the environment
+
+When you're done, you can just close the terminal, but if you decide you need to deactivate the environment, just run: deactivate
+
+
+***************************
+Install requirements
+***************************
+
+The program requires a few libraries, listed in the requirements.txt file
+
+To install them, just run: pip install -r requirements.txt
+
+
+***************************
+Run it
+***************************
+
+From the directory holding app.py, run: python3 app.py
+
+The program will run until forced close. Just hit CTRL+C to close it.
+
+
+***************************
+Further notes
+***************************
+
+None currently
