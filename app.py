@@ -194,7 +194,7 @@ def getpoll(poll_id):
     p_data = dbi_get_poll(poll_id)
     if p_data is None:
         return {"Message":"Could not find poll"}, 404
-    else if ((not current_user.is_authenticated) and (not p_data["allow_guest"])):
+    elif ((not current_user.is_authenticated) and (not p_data["allow_guest"])):
         return {"Message":"This poll does not allow guest access"}, 401
     else:
         return p_data, 200
@@ -219,7 +219,7 @@ def update():
     if current_user.is_authenticated:
         u["id"] = current_user.id
         u["name"] = current_user.name
-    else if (data["u_name"] != ""):
+    elif (data["u_name"] != ""):
         u["name"] = data["u_name"]
     else:
         return {"Message":"Must specify a user name"}, 400
@@ -297,7 +297,7 @@ def saveschedule():
         j = request.values.get("json_data")
         data = json.loads(j)
         # validate data
-        if data["s_name"] = "":
+        if (data["s_name"] == ""):
             return {"Message":"Schedule must have a name"}, 400
         if (len(data["s_data"]) != 672):
             return {"Message":"Schedule data is of wrong length"}, 400
@@ -308,13 +308,13 @@ def saveschedule():
         uid = current_user.id
         u = dbi_get_user(uid)
         write = False
-        for x in u["schedules"]
-            if (x["name"] = data["s_name"]):
+        for x in u["schedules"]:
+            if (x["name"] == data["s_name"]):
                 x["schedule"] = data["s_data"]
                 write = True
                 break
         if not write:
-            u["schedules"].append( {"name" = data["s_name"], "schedule" = data["s_data"]} )
+            u["schedules"].append( {"name": data["s_name"], "schedule": data["s_data"]} )
         y = dbi_update_user(u)
         if (y.matchedCount == 0):
             return {"Message":"Could not find user to modify"}, 404
@@ -333,7 +333,7 @@ def getschedulestring():
         uid = current_user.id
         u = dbi_get_user(uid)
         for x in u["schedules"]:
-            if (x["name"] == data["s_name"])
+            if (x["name"] == data["s_name"]):
                 packed = sched_to_string(x["schedule"])
                 return packed, 200
         return {"Message":"Could not find specified schedule"}, 400
@@ -396,13 +396,13 @@ def add_poll_to_user(uid, pid, owned):
         if owned:
             u["polls_own"].append(pid)
             dbi_update_user(u)
-        else if pid not in u["polls_member"]:
+        elif pid not in u["polls_member"]:
             u["polls_member"].append(pid)
             dbi_update_user(u)
 
 
 def sched_to_string(sched):
-    arr = numpy.array(sched), dtype=bool)
+    arr = numpy.array(sched, dtype=bool)
     packed = numpy.packbits(arr, axis=None)
     str = numpy.array2string(packed)
     return packed
