@@ -35,6 +35,43 @@ To install them, just run: pip install -r requirements.txt
 
 
 ***************************
+Create a Google Client
+***************************
+
+We'll need to register the app as a client to Google.
+
+Go to https://console.developers.google.com/apis/credentials and login.
+Once logged in, you can create a project. The name can be whatever you want.
+In the left menu, select Credentials. There should then be a "create credentials" button near the top of the page.
+Click "create credentials" and select "OAuth client ID"
+
+If you haven't used this service before, it'll take you to the OAuth consent screen.
+Just follow directions. The only thing I think is likely to be important is scopes;
+make sure ./auth/userinfo.email, openid, and ./auth/userinfo.profile are all added
+(They should be at the top when you click "add or remove scopes")
+When done, you might need to go back to Credentials and click "Create Credentials" -> "OAuth client ID" again (I forget)
+
+For "application type", select "web application"
+Under authorized JavaScript origins, add: https://127.0.0.1:5000
+Under authorized redirect URIs, add: https://127.0.0.1:5000/login/callback
+Click save. It'll then display a Client ID string and Client secret string. Save both of these!
+
+
+***************************
+Set environment variables
+***************************
+
+Next, we need to set the Client ID and Client secret as environmental variables that the program can read.
+If you're using a virtual environment, make sure it's activated.
+Then run the following commands:
+
+export GOOGLE_CLIENT_ID=client_id
+export GOOGLE_CLIENT_SECRET=client_secret
+
+where client_id and client_secret are the strings you got in the previous step.
+
+
+***************************
 Run it
 ***************************
 
