@@ -212,7 +212,10 @@ def update():
     if ((p["p_pw"] != "") and (p["p_pw"] != data["p_pw"])):
         return {"Message":"Password does not match"}, 401
     # build entry
-    entry = {"times":p["times"], "containers":p["containers"], "questions":p["questions"], "members":p["members"]}
+    entry = {"p_name": p["p_name"], "p_pq":p["p_pw"], "allow_guests": p["allow_guests"],
+            "date_start": p["date_start"], "date_end": p["date_end"], "index_start": p["index_start"],
+            "index_end": p["index_end"], "containers": p["containers"], "questions": p["questions"],
+            "members": p["members"], "times":p["times"]}
     # get uid and/or name if valid
     # add to poll["members"] if not present
     u = { "name": "", "id": "" }
@@ -247,26 +250,87 @@ def update():
         else:
             if u_index in t_entry:
                 t_entry.remove(u_index)
-    """
+    
     # process containers
-    # plan: iterate through all entry containers. Iterate through each item in entry containers
-    # if item doesn't exist in corresponding items["containers"] in data, remove user from it
-    # if an item ends up empty, remove it
-    # then iterate through data containers. if item exists in corresponding entry container, add user
-    # if item doesn't exist in corresponding entry container, add it, then add user
-    for cont in entry["containers"]:
-        c_name = cont["name"]
-        for e_item in cont["items"]:
-            if e_item not in data["items"]["containers"][c_name]:
-                if u_index in e_item["people"]:
-                    e_item["people"].remove(u_index)
-                    if (len(e_item["people"]) == 0):
-                        cont["items"].remove(e_item)
+    # go through data containers, compare to entry containers
+    # if item not present in entry, add it (with user)
     for dcont in data["containers"]:
         c_name = dcont["name"]
-        for d_item in dcont["items"]:
-            if d_item["name"] not in entry["containers"][c_name]
-    """
+        # find equivalent entry container
+        e_cont = None
+        for ec in entry["containers"]:
+            if (ec["name"] == c_name):
+                e_cont = ec
+                break
+        if e_cont:
+            # equiv container found, proceed
+            # should always be true since we don't delete containers
+            for d_item in dcont["items"]:
+                # find equiv entry item
+                e_item = None
+                for ei in e_cont["items"]:
+                    if (ei["name"] in d_item):
+                        e_item = ei
+                        break
+                if (e_item == None):
+                    # item not in entry, add it
+                    newitem = {"name":d_item, "people": [u_index] }
+                    e_cont.append(newitem) 
+    # then, go through containers in entry, compare to equiv in submitted data
+    # if item exists, ensure it has user in entry people list
+    # if it doesn't exist, remove user from entry item
+    for cont in entry["containers"]:
+        c_name = cont["name"]
+        # find equivalent container in submitted data
+        d_cont = None
+        for dc in data["containers"]:
+            if (dc["name"] == c_name):
+                d_cont = dc
+                break
+        if d_cont:
+            # equivalent container found, proceed
+            for e_item in cont["items"]:
+                if e_item["name"] in d_cont["items"]:
+                    # item exists in submitted data, ensure user is present in entry
+                    if u_index not in e_item["people"]:
+                        e_item["people"].append(u_index)
+                else:
+                    # item doesn't exist, remove user from entry if present
+                    if u_index in e_item["people"]:
+                        e_item["people"].remove(u_index)
+    # current implementation keeps empty items so they don't disappear if nobody selects them
+    
+    # process questions
+    # go through all answers in entry.
+    # if present in submitted data, add user (if not present)
+    # if not present in submitted data, remove user (if present)
+    for eq in entry["questions"]:
+        q_name = eq["question"]
+        # find equivalent question in submitted data
+        d_quest = None
+        for dq in data["questions"]:
+            if (dq["question"] == q_name):
+                d_quest = dq
+                break
+        if d_quest:
+            # question found, proceed
+            for e_ans in eq["answers"]:
+                # find equivalent answer in submitted data
+                if (e_ans["a_text"] in d_quest["answers"]):
+                    # answer found, add user if absent
+                    if u_index not in e_ans["people"]:
+                        e_ans["people"].append(u_index)
+                else:
+                    # answer not found, remove user if present
+                    if u_index in e_ans["people"]:
+                        e_ans["people"].remove(u_index)
+        else:
+            # question not found, remove user from answers!
+            for ea in eq["answers"]:
+                if u_index in ea["people"]:
+                    ea["people"].remove(u_index)
+    
+    # all fields filled, write update:
     x = dbi_update_poll(data)
     if (x.matchedCount == 0):
         return {"Message":"Poll does not exist to modify"}, 404
@@ -348,7 +412,7 @@ def getschedulestring():
         packed = sched_to_string(data["s_data"])
         return packed, 200
 
-"""
+
 @app.route("/uploadschedulestring")
 def uploadschedulestring():
     j = request.values.get("json_data")
@@ -366,14 +430,58 @@ def uploadschedulestring():
     days = [ [], [], [], [], [], [], [] ]
     start = p["index_start"]
     end = p["index_end"]
-    # for day of week, we use 0 for sunday instead of the default monday
-    # so some ugly conversion needed
+    # notice: frontend treats day 0 as Sunday
+    # saved schedules will also have this behavior
     for i, info in enumerate(sched):
         if ( ((i % 96) < start) or ((i % 96) > end)):
             continue
-        times[dow(i)][i % 96]
-    # on pause while correcting update!
-"""
+        times[(i / 96) % 7][i % 96]
+    # days constructed, update poll times
+    # build entry
+    entry = {"p_name": p["p_name"], "p_pq":p["p_pw"], "allow_guests": p["allow_guests"],
+            "date_start": p["date_start"], "date_end": p["date_end"], "index_start": p["index_start"],
+            "index_end": p["index_end"], "containers": p["containers"], "questions": p["questions"],
+            "members": p["members"], "times":p["times"]}
+    # get uid and/or name if valid
+    # add to poll["members"] if not present
+    u = { "name": "", "id": "" }
+    if current_user.is_authenticated:
+        u["id"] = current_user.id
+        u["name"] = current_user.name
+    elif (data["u_name"] != ""):
+        u["name"] = data["u_name"]
+    else:
+        return {"Message":"Must specify a user name"}, 400
+    if u not in p["members"]:
+        data["members"].append(u)
+    # get member index of the updating user
+    u_index = find_member_index(u["name"], p["members"])
+    # process times
+    d_len = p["index_start"] - p["index_end"] + 1 # time periods per day
+    d1 = strptime(p["date_start"], "%Y/%m/%d")
+    d2 = strptime(p["date_end"], "%Y/%m/%d")
+    d_delta = d2 - d1
+    days = d_delta.days + 1 # number of days
+    max = days * d_len # total number of time periods in poll
+    dow_start = d1.weekday() # day of week of first day (where Monday == 0)
+    # iterate through all times in entry
+    # for each time slot, check boolean in equivalent entry in days list
+    # if true, add u_index if absent
+    # if false, remove u_index if present
+    for counter, t_entry in enumerate(entry["times"]):
+        # schedule treats 0 as Sunday
+        # target_day must +1 to get right days index
+        target_day = ((counter / d_len) + dow_start + 1) % 7
+        target_time = counter % d_len
+        if days[target_day][target_time]:
+            # true, add u_index if absent
+            if u_index not in t_entry:
+                t_entry.append(u_index)
+        else:
+            # false, remove u_index if present
+            if u_index in t_entry:
+                t_entry.remove(u_index)
+    return {"Message":"Update success"}, 200
 
 
 # Delete all database entries. Don't use unless you mean it!
@@ -413,11 +521,6 @@ def string_to_sched(str):
     arr = numpy.unpackbits(packed)
     arr_bool = arr.astype(bool)
     return arr_bool.tolist()
-
-
-# converts a schedule index into a day-of-week int
-def dow(index):
-    return ((index % 96) + 1) % 7
 
 
 def find_member_index(n, arr):
