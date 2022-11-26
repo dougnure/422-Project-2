@@ -86,7 +86,7 @@ def dbi_update_user(dat):
 # Login APIs
 ################################
 
-@app.route("/")
+@app.route("/checklogin")
 def index():
     print("Hit on homepage")
     if current_user.is_authenticated:
