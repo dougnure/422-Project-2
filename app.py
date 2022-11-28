@@ -167,7 +167,7 @@ def logout():
 
 
 # Create poll
-@app.route("/createpoll")
+@app.route("/createpoll", methods=["POST"])
 def createpoll():
     j = request.values.get("json_data")
     data = json.loads(j)
@@ -201,7 +201,7 @@ def getpoll(poll_id):
 
 
 # Update poll
-@app.route("/update")
+@app.route("/update", methods=["POST"])
 def update():
     j = request.values.get("json_data")
     data = json.loads(j)
@@ -355,7 +355,7 @@ def profile():
         return {"Message":"User is not logged in"}, 400
 
 
-@app.route("/saveschedule")
+@app.route("/saveschedule", methods=["POST"])
 def saveschedule():
     if current_user.is_authenticated:
         j = request.values.get("json_data")
@@ -388,7 +388,7 @@ def saveschedule():
         return {"Message":"User is not logged in"}, 400
 
 
-@app.route("/getschedulestring")
+@app.route("/getschedulestring", methods=["POST"])
 def getschedulestring():
     j = request.values.get("json_data")
     data = json.loads(j)
@@ -413,7 +413,7 @@ def getschedulestring():
         return packed, 200
 
 
-@app.route("/uploadschedulestring")
+@app.route("/uploadschedulestring", methods=["POST"])
 def uploadschedulestring():
     j = request.values.get("json_data")
     data = json.loads(j)
