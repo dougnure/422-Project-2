@@ -8,3 +8,5 @@ google-auth-oauthlib
 requests-oauthlib
 pymongo
 numpy
+flask-cors
+bson

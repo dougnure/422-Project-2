@@ -6,16 +6,20 @@ from flask import Flask, redirect, url_for, request, jsonify
 from flask_login import (LoginManager, current_user, login_required, login_user, logout_user, UserMixin)
 import requests
 from oauthlib.oauth2 import WebApplicationClient
-from datetime import date
+import time
+from datetime import date, datetime
 import pymongo
 from pymongo import MongoClient
 import numpy
+from flask_cors import CORS
+from bson.objectid import ObjectId
 
 import db
 from user import User
 
 app = Flask(__name__)
 app.secret_key =  os.urandom(24) # or os.environ.get("SECRET_KEY")
+CORS(app)
 
 
 #Google auth config
@@ -65,10 +69,10 @@ def dbi_update_poll(dat):
 def dbi_delete_older_than(tar_date):
     db.delete_older_than(tar_date)
 
-
+"""
 def dbi_nuke():
     db.nuke_it_from_orbit()
-
+"""
 
 def dbi_create_user(dat):
     return db.create_user(dat)
@@ -171,7 +175,8 @@ def logout():
 def createpoll():
     j = request.values.get("json_data")
     data = json.loads(j)
-    data["current_date"] = date.today()
+    today = date.today()
+    data["create_date"] =  today.strftime("%y/%m/%d")
     data["members"] = []
     if current_user.is_authenticated:
         uid = current_user.id
@@ -179,32 +184,44 @@ def createpoll():
     else:
         if data["allow_guest"] == False:
             return {"Message":"Guest polls must allow guest users"}, 400
+    for q in data["questions"]:
+        a_list = []
+        for a in q["answers"]:
+            a_text = a
+            a_temp = {"a_text":a_text, "people":[] }
+            a_list.append(a_temp)
+        q["answers"] = a_list
     x = dbi_create_poll(data)
     pid = x.inserted_id
     if current_user.is_authenticated:
         # add pid to user's list of polls
         add_poll_to_user(current_user.id, pid, True)
-    retval['pid':x.inserted_id]
+    retval = { 'pid': x.inserted_id }
     return retval, 201
 
 
 # Get poll data
 @app.route("/poll/<poll_id>")
 def getpoll(poll_id):
-    p_data = dbi_get_poll(poll_id)
+    id = ObjectId(poll_id)
+    p_data = dbi_get_poll(id)
+    
     if p_data is None:
-        return {"Message":"Could not find poll"}, 404
+        # return {"Message":"Could not find poll"}, 404
+        print("Could not find poll")
     elif ((not current_user.is_authenticated) and (not p_data["allow_guest"])):
-        return {"Message":"This poll does not allow guest access"}, 401
+        # return {"Message":"This poll does not allow guest access"}, 401
+        print("This poll does not allow guest access")
     else:
         return p_data, 200
 
 
 # Update poll
 @app.route("/update", methods=["POST"])
-def update():
+def update(id):
     j = request.values.get("json_data")
     data = json.loads(j)
+    
     p = dbi_get_poll(data["poll_id"])
     # check if access is allowed
     if ((not current_user.is_authenticated) and (not p["allow_guest"])):
@@ -212,10 +229,10 @@ def update():
     if ((p["p_pw"] != "") and (p["p_pw"] != data["p_pw"])):
         return {"Message":"Password does not match"}, 401
     # build entry
-    entry = {"p_name": p["p_name"], "p_pq":p["p_pw"], "allow_guests": p["allow_guests"],
+    entry = {"p_name": p["p_name"], "p_pw":p["p_pw"], "allow_guest": p["allow_guest"],
             "date_start": p["date_start"], "date_end": p["date_end"], "index_start": p["index_start"],
             "index_end": p["index_end"], "containers": p["containers"], "questions": p["questions"],
-            "members": p["members"], "times":p["times"]}
+            "members": p["members"], "times":p["times"], "_id":p["_id"]}
     # get uid and/or name if valid
     # add to poll["members"] if not present
     u = { "name": "", "id": "" }
@@ -233,8 +250,8 @@ def update():
     
     # process times
     d_len = p["index_start"] - p["index_end"] + 1
-    d1 = strptime(p["date_start"], "%Y/%m/%d")
-    d2 = strptime(p["date_end"], "%Y/%m/%d")
+    d1 = datetime.strptime(p["date_start"], "%Y/%m/%d")
+    d2 = datetime.strptime(p["date_end"], "%Y/%m/%d")
     d_delta = d2 - d1
     days = d_delta.days + 1
     for t_index, t_entry in enumerate(entry["times"]):
@@ -254,7 +271,7 @@ def update():
     # process containers
     # go through data containers, compare to entry containers
     # if item not present in entry, add it (with user)
-    for dcont in data["containers"]:
+    for dcont in data["items"]:
         c_name = dcont["name"]
         # find equivalent entry container
         e_cont = None
@@ -275,7 +292,7 @@ def update():
                 if (e_item == None):
                     # item not in entry, add it
                     newitem = {"name":d_item, "people": [u_index] }
-                    e_cont.append(newitem) 
+                    e_cont["items"].append(newitem) 
     # then, go through containers in entry, compare to equiv in submitted data
     # if item exists, ensure it has user in entry people list
     # if it doesn't exist, remove user from entry item
@@ -283,7 +300,7 @@ def update():
         c_name = cont["name"]
         # find equivalent container in submitted data
         d_cont = None
-        for dc in data["containers"]:
+        for dc in data["items"]:
             if (dc["name"] == c_name):
                 d_cont = dc
                 break
@@ -331,8 +348,8 @@ def update():
                     ea["people"].remove(u_index)
     
     # all fields filled, write update:
-    x = dbi_update_poll(data)
-    if (x.matchedCount == 0):
+    x = dbi_update_poll(entry)
+    if (x.matched_count == 0):
         return {"Message":"Poll does not exist to modify"}, 404
     else:
         # poll updated, send success, add to user's "members" list
@@ -458,8 +475,8 @@ def uploadschedulestring():
     u_index = find_member_index(u["name"], p["members"])
     # process times
     d_len = p["index_start"] - p["index_end"] + 1 # time periods per day
-    d1 = strptime(p["date_start"], "%Y/%m/%d")
-    d2 = strptime(p["date_end"], "%Y/%m/%d")
+    d1 = datetime.strptime(p["date_start"], "%Y/%m/%d")
+    d2 = datetime.strptime(p["date_end"], "%Y/%m/%d")
     d_delta = d2 - d1
     days = d_delta.days + 1 # number of days
     max = days * d_len # total number of time periods in poll
@@ -486,10 +503,11 @@ def uploadschedulestring():
 
 # Delete all database entries. Don't use unless you mean it!
 # Do not include this in release! For testing only!
+"""
 @app.route("/nukem")
 def nukem():
     dbi_nuke()
-
+"""
 
 ################################
 # Helper Functions
@@ -524,8 +542,10 @@ def string_to_sched(str):
 
 
 def find_member_index(n, arr):
-    for i, name in enumerate(arr):
-        if (n == name):
+    # print("Looking for: ", n)
+    for i, user in enumerate(arr):
+        # print("Looking at ", user["name"])
+        if (n == user["name"]):
             return i
     return -1 # indicates error
 
@@ -613,6 +633,35 @@ def main():
     gutest = dbi_get_user(uid)
     print("Got user:")
     print(gutest)
+    dbi_nuke()
+    """
+    
+    """
+    # test poll creation and retrieval
+    temp_id = createpoll()
+    test_id = temp_id["pid"]
+    print("Created poll with ID: ", test_id)
+    dat = getpoll(test_id)
+    print(dat)
+    """
+    
+    """
+    # test retreiving existing poll
+    test_id = '63892d82a06be51d7a47eebe'
+    dat = getpoll(test_id)
+    print(dat)
+    """
+    
+    """
+    # test poll creation and retrieval
+    temp_id = createpoll()
+    test_id = temp_id["pid"]
+    print("Created poll with ID: ", test_id)
+    dat = getpoll(test_id)
+    print(dat)
+    update(test_id)
+    dat = getpoll(test_id)
+    print(dat)
     dbi_nuke()
     """
 

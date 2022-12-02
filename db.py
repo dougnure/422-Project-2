@@ -15,7 +15,7 @@ c_user = db["users"]
 def shutdown_db_client():
     m_client.close
 
-
+"""
 def nuke_it_from_orbit():
     # only uncomment and use if you really mean it
     x = c_poll.delete_many({})
@@ -23,7 +23,7 @@ def nuke_it_from_orbit():
     x = c_user.delete_many({})
     print(x.deleted_count, " users deleted")
     return
-
+"""
 
 ################################
 # Poll DB functions
