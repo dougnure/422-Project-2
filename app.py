@@ -28,6 +28,10 @@ GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", None)
 GOOGLE_DISCOVERY_URL = ("https://accounts.google.com/.well-known/openid-configuration")
 
 
+# fix CORS issues?
+app.config["Access-Control-Allow-Origin"] = "*"
+
+
 # setup login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
