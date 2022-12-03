@@ -187,7 +187,7 @@ def createpoll():
         data["members"].append( {"name":current_user.name, "id":uid} )
     else:
         if data["allow_guest"] == False:
-            return {"Message":"Guest polls must allow guest users"}, 400
+            return wrap_response({"Message":"Guest polls must allow guest users"}, 400)
     for q in data["questions"]:
         a_list = []
         for a in q["answers"]:
@@ -201,7 +201,7 @@ def createpoll():
         # add pid to user's list of polls
         add_poll_to_user(current_user.id, pid, True)
     retval = { 'pid': x.inserted_id }
-    return retval, 201
+    return wrap_response(retval, 201)
 
 
 # Get poll data
@@ -217,7 +217,7 @@ def getpoll(poll_id):
         # return {"Message":"This poll does not allow guest access"}, 401
         print("This poll does not allow guest access")
     else:
-        return p_data, 200
+        return wrap_response(p_data, 200)
 
 
 # Update poll
@@ -229,9 +229,9 @@ def update(id):
     p = dbi_get_poll(data["poll_id"])
     # check if access is allowed
     if ((not current_user.is_authenticated) and (not p["allow_guest"])):
-        return {"Message":"Guests can not modify this poll"}, 401
+        return wrap_response({"Message":"Guests can not modify this poll"}, 401)
     if ((p["p_pw"] != "") and (p["p_pw"] != data["p_pw"])):
-        return {"Message":"Password does not match"}, 401
+        return wrap_response({"Message":"Password does not match"}, 401)
     # build entry
     entry = {"p_name": p["p_name"], "p_pw":p["p_pw"], "allow_guest": p["allow_guest"],
             "date_start": p["date_start"], "date_end": p["date_end"], "index_start": p["index_start"],
@@ -246,7 +246,7 @@ def update(id):
     elif (data["u_name"] != ""):
         u["name"] = data["u_name"]
     else:
-        return {"Message":"Must specify a user name"}, 400
+        return wrap_response({"Message":"Must specify a user name"}, 400)
     if u not in p["members"]:
         data["members"].append(u)
     # get member index of the updating user
@@ -359,7 +359,7 @@ def update(id):
         # poll updated, send success, add to user's "members" list
         if current_user.is_authenticated:
             add_poll_to_user(current_user.id, p["_id"], False)
-        return {"Message":"Update success"}, 200
+        return wrap_response({"Message":"Update success"}, 200)
 
 
 @app.route("/profile")
@@ -371,9 +371,9 @@ def profile():
         u_data["polls_owned"] = u["polls_own"]
         u_data["polls_member"] = u["polls_member"]
         u_tata["save_schedules"] = u["schedules"]
-        return u_data, 200
+        return wrap_response(u_data, 200)
     else:
-        return {"Message":"User is not logged in"}, 400
+        return wrap_response({"Message":"User is not logged in"}, 400)
 
 
 @app.route("/saveschedule", methods=["POST"])
@@ -383,12 +383,12 @@ def saveschedule():
         data = json.loads(j)
         # validate data
         if (data["s_name"] == ""):
-            return {"Message":"Schedule must have a name"}, 400
+            return wrap_response({"Message":"Schedule must have a name"}, 400)
         if (len(data["s_data"]) != 672):
-            return {"Message":"Schedule data is of wrong length"}, 400
+            return wrap_response({"Message":"Schedule data is of wrong length"}, 400)
         for x in data["s_data"]:
             if ((x is not True ) or (x is not False)):
-                return {"Message":"Schedule data malformed; only True or False allowed"}, 400
+                return wrap_response({"Message":"Schedule data malformed; only True or False allowed"}, 400)
         # looks good, save it
         uid = current_user.id
         u = dbi_get_user(uid)
@@ -402,11 +402,11 @@ def saveschedule():
             u["schedules"].append( {"name": data["s_name"], "schedule": data["s_data"]} )
         y = dbi_update_user(u)
         if (y.matchedCount == 0):
-            return {"Message":"Could not find user to modify"}, 404
+            return wrap_response({"Message":"Could not find user to modify"}, 404)
         else:
-            return {"Message":"Update success"}, 200
+            return wrap_response({"Message":"Update success"}, 200)
     else:
-        return {"Message":"User is not logged in"}, 400
+        return wrap_response({"Message":"User is not logged in"}, 400)
 
 
 @app.route("/getschedulestring", methods=["POST"])
@@ -420,18 +420,18 @@ def getschedulestring():
         for x in u["schedules"]:
             if (x["name"] == data["s_name"]):
                 packed = sched_to_string(x["schedule"])
-                return packed, 200
-        return {"Message":"Could not find specified schedule"}, 400
+                return wrap_response(packed, 200)
+        return wrap_response({"Message":"Could not find specified schedule"}, 400)
     # otherwise check supplied s_data
     else:
         if (len(data["s_data"]) != 672):
-            return {"Message":"Schedule data is of wrong length"}, 400
+            return wrap_response({"Message":"Schedule data is of wrong length"}, 400)
         for x in data["s_data"]:
             if ((x is not True ) or (x is not False)):
-                return {"Message":"Schedule data malformed; only True or False allowed"}, 400
+                return wrap_response({"Message":"Schedule data malformed; only True or False allowed"}, 400)
         # looks good, convert it
         packed = sched_to_string(data["s_data"])
-        return packed, 200
+        return wrap_response(packed, 200)
 
 
 @app.route("/uploadschedulestring", methods=["POST"])
@@ -441,10 +441,10 @@ def uploadschedulestring():
     sched = string_to_sched(data["s_string"])
     # validate data
     if (len(data["s_data"]) != 672):
-        return {"Message":"Schedule data is of wrong length"}, 400
+        return wrap_response({"Message":"Schedule data is of wrong length"}, 400)
     for x in data["s_data"]:
         if ((x is not True ) or (x is not False)):
-            return {"Message":"Schedule data malformed; only True or False allowed"}, 400
+            return wrap_response({"Message":"Schedule data malformed; only True or False allowed"}, 400)
     # okay, continue
     pid = data["poll_id"]
     p = dbi_get_poll(pid)
@@ -472,7 +472,7 @@ def uploadschedulestring():
     elif (data["u_name"] != ""):
         u["name"] = data["u_name"]
     else:
-        return {"Message":"Must specify a user name"}, 400
+        return wrap_response({"Message":"Must specify a user name"}, 400)
     if u not in p["members"]:
         data["members"].append(u)
     # get member index of the updating user
@@ -502,7 +502,7 @@ def uploadschedulestring():
             # false, remove u_index if present
             if u_index in t_entry:
                 t_entry.remove(u_index)
-    return {"Message":"Update success"}, 200
+    return wrap_response({"Message":"Update success"}, 200)
 
 
 # Delete all database entries. Don't use unless you mean it!
@@ -552,6 +552,14 @@ def find_member_index(n, arr):
         if (n == user["name"]):
             return i
     return -1 # indicates error
+
+
+def wrap_response(data: dict, *args, **kwargs) -> flask.Response:
+    json = flask.jsonify(data)
+    response = flask.make_response(json, *args, **kwargs)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = True
+    return response
 
 
 """
