@@ -24,7 +24,8 @@ class User(UserMixin):
         self.name = name
         self.email = email
         self.profile_pic = profile_pic
-        self.polls = polls
+        self.polls_own = polls_own
+        self.polls_member = polls_member
         self.schedules = schedules
 
 # needs db.get_user()
